@@ -28,6 +28,7 @@ pub struct BinsVisitor {}
 
 impl BinsVisitor {
     #[allow(clippy::new_without_default)]
+    #[inline]
     pub fn new() -> Self {
         BinsVisitor {}
     }
@@ -36,6 +37,7 @@ impl BinsVisitor {
 impl<'de> Visitor<'de> for BinsVisitor {
     type Value = DeserializedCache;
 
+    #[inline]
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a sequence of strings")
     }
@@ -55,6 +57,7 @@ impl<'de> Visitor<'de> for BinsVisitor {
 pub struct DeserializedCache {}
 
 impl<'de> Deserialize<'de> for DeserializedCache {
+    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<DeserializedCache, D::Error>
     where
         D: Deserializer<'de>,
@@ -66,6 +69,7 @@ impl<'de> Deserialize<'de> for DeserializedCache {
 pub struct UstrVisitor {}
 impl UstrVisitor {
     #[allow(clippy::new_without_default)]
+    #[inline]
     pub fn new() -> Self {
         UstrVisitor {}
     }
@@ -74,10 +78,12 @@ impl UstrVisitor {
 impl<'de> Visitor<'de> for UstrVisitor {
     type Value = Ustr;
 
+    #[inline]
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a &str")
     }
 
+    #[inline]
     fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
     where
         E: Error,
@@ -87,6 +93,7 @@ impl<'de> Visitor<'de> for UstrVisitor {
 }
 
 impl<'de> Deserialize<'de> for Ustr {
+    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Ustr, D::Error>
     where
         D: Deserializer<'de>,
@@ -96,6 +103,7 @@ impl<'de> Deserialize<'de> for Ustr {
 }
 
 impl Serialize for Ustr {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

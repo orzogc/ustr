@@ -172,6 +172,7 @@ pub struct Ustr {
 /// pointer comparison, but much less surprising if you use Ustrs as keys in
 /// e.g. a BTreeMap
 impl Ord for Ustr {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.as_str().cmp(other.as_str())
     }
@@ -181,6 +182,7 @@ impl Ord for Ustr {
 /// pointer comparison, but much less surprising if you use Ustrs as keys in
 /// e.g. a BTreeMap
 impl PartialOrd for Ustr {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -199,6 +201,7 @@ impl Ustr {
     /// assert_eq!(u1, u2);
     /// assert_eq!(ustr::num_entries(), 1);
     /// ```
+    #[inline]
     pub fn from(string: &str) -> Ustr {
         let hash = hash_str(&string);
         let mut sc = STRING_CACHE.0[whichbin(hash)].lock();
@@ -210,6 +213,7 @@ impl Ustr {
         }
     }
 
+    #[inline]
     pub fn from_existing(string: &str) -> Option<Ustr> {
         let hash = hash_str(&string);
         let sc = STRING_CACHE.0[whichbin(hash)].lock();
@@ -227,6 +231,7 @@ impl Ustr {
     /// let words: Vec<&str> = u_fox.as_str().split_whitespace().collect();
     /// assert_eq!(words, ["the", "quick", "brown", "fox"]);
     /// ```
+    #[inline]
     pub fn as_str(&self) -> &'static str {
         // This is safe if:
         // 1) self.char_ptr points to a valid address
@@ -263,6 +268,7 @@ impl Ustr {
     /// straight along with no checking.
     /// The string is **immutable**. That means that if you modify it across the
     /// FFI boundary then all sorts of terrible things will happen.
+    #[inline]
     pub fn as_char_ptr(&self) -> *const std::os::raw::c_char {
         self.char_ptr.as_ptr() as *const std::os::raw::c_char
     }
@@ -275,6 +281,7 @@ impl Ustr {
     /// This function by itself is safe as the pointer and length are
     /// guaranteed to be valid. All the same caveats for the use of the CStr
     /// as given in the CSstr docs apply
+    #[inline]
     pub fn as_cstr(&self) -> &std::ffi::CStr {
         unsafe {
             std::ffi::CStr::from_bytes_with_nul_unchecked(
@@ -298,6 +305,7 @@ impl Ustr {
     }
 
     /// Returns true if the length is zero.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -309,6 +317,7 @@ impl Ustr {
     }
 
     /// Get an owned String copy of this string.
+    #[inline]
     pub fn to_owned(&self) -> String {
         self.as_str().to_owned()
     }
@@ -321,12 +330,14 @@ unsafe impl Send for Ustr {}
 unsafe impl Sync for Ustr {}
 
 impl PartialEq<&str> for Ustr {
+    #[inline]
     fn eq(&self, other: &&str) -> bool {
         self.as_str() == *other
     }
 }
 
 impl PartialEq<String> for Ustr {
+    #[inline]
     fn eq(&self, other: &String) -> bool {
         self.as_str() == other
     }
@@ -335,6 +346,7 @@ impl PartialEq<String> for Ustr {
 impl Eq for Ustr {}
 
 impl AsRef<str> for Ustr {
+    #[inline]
     fn as_ref(&self) -> &str {
         self.as_str()
     }
@@ -350,24 +362,28 @@ impl FromStr for Ustr {
 }
 
 impl From<&str> for Ustr {
+    #[inline]
     fn from(s: &str) -> Ustr {
         Ustr::from(s)
     }
 }
 
 impl From<Ustr> for &'static str {
+    #[inline]
     fn from(s: Ustr) -> &'static str {
         s.as_str()
     }
 }
 
 impl From<String> for Ustr {
+    #[inline]
     fn from(s: String) -> Ustr {
         Ustr::from(&s)
     }
 }
 
 impl Default for Ustr {
+    #[inline]
     fn default() -> Self {
         Ustr::from("")
     }
@@ -375,18 +391,21 @@ impl Default for Ustr {
 
 impl std::ops::Deref for Ustr {
     type Target = str;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.as_str()
     }
 }
 
 impl fmt::Display for Ustr {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
 impl fmt::Debug for Ustr {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "u!({:?})", self.as_str())
     }
@@ -395,6 +414,7 @@ impl fmt::Debug for Ustr {
 // Just feed the precomputed hash into the Hasher. Note that this will of course
 // be terrible unless the Hasher in question is expecting a precomputed hash.
 impl Hash for Ustr {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.precomputed_hash().hash(state);
     }
@@ -417,6 +437,7 @@ pub unsafe fn _clear_cache() {
 
 /// Returns the total amount of memory allocated and in use by the cache in
 /// bytes
+#[inline]
 pub fn total_allocated() -> usize {
     STRING_CACHE
         .0
@@ -430,6 +451,7 @@ pub fn total_allocated() -> usize {
 }
 
 /// Returns the total amount of memory reserved by the cache in bytes
+#[inline]
 pub fn total_capacity() -> usize {
     STRING_CACHE
         .0
@@ -487,6 +509,7 @@ pub fn existing_ustr(s: &str) -> Option<Ustr> {
 /// ustr("Send me to JSON and back");
 /// let json = serde_json::to_string(ustr::cache()).unwrap();
 /// # }
+#[inline]
 pub fn cache() -> &'static Bins {
     &STRING_CACHE
 }
@@ -503,6 +526,7 @@ pub fn cache() -> &'static Bins {
 /// let _ = u(", World!");
 /// assert_eq!(ustr::num_entries(), 2);
 /// ```
+#[inline]
 pub fn num_entries() -> usize {
     STRING_CACHE
         .0
@@ -515,6 +539,7 @@ pub fn num_entries() -> usize {
 }
 
 #[doc(hidden)]
+#[inline]
 pub fn num_entries_per_bin() -> Vec<usize> {
     STRING_CACHE
         .0
