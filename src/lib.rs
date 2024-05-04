@@ -200,11 +200,7 @@ impl Ustr {
     /// assert_eq!(ustr::num_entries(), 1);
     /// ```
     pub fn from(string: &str) -> Ustr {
-        let hash = {
-            let mut hasher = ahash::AHasher::default();
-            hasher.write(string.as_bytes());
-            hasher.finish()
-        };
+        let hash = hash_str(&string);
         let mut sc = STRING_CACHE.0[whichbin(hash)].lock();
         Ustr {
             // SAFETY: sc.insert does not give back a null pointer
@@ -215,11 +211,7 @@ impl Ustr {
     }
 
     pub fn from_existing(string: &str) -> Option<Ustr> {
-        let hash = {
-            let mut hasher = ahash::AHasher::default();
-            hasher.write(string.as_bytes());
-            hasher.finish()
-        };
+        let hash = hash_str(&string);
         let sc = STRING_CACHE.0[whichbin(hash)].lock();
         sc.get_existing(string, hash).map(|ptr| Ustr {
             char_ptr: unsafe { NonNull::new_unchecked(ptr as *mut _) },
@@ -582,6 +574,24 @@ pub fn string_cache_iter() -> StringCacheIterator {
         current_alloc: 0,
         current_ptr,
     }
+}
+
+/// Hashes the string, returns the hashed value.
+///
+/// # Example
+///
+/// ```
+/// use ustr::{hash_str, ustr as u};
+///
+/// let s_fox = "The quick brown fox jumps over the lazy dog.";
+/// let u_fox = u(s_fox);
+/// assert_eq!(u_fox.precomputed_hash(), hash_str(&s_fox));
+/// ```
+#[inline]
+pub fn hash_str<S: AsRef<str>>(string: &S) -> u64 {
+    let mut hasher = ahash::AHasher::default();
+    hasher.write(string.as_ref().as_bytes());
+    hasher.finish()
 }
 
 #[repr(transparent)]
