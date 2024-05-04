@@ -615,7 +615,7 @@ pub fn string_cache_iter() -> StringCacheIterator {
 #[inline]
 pub fn hash_str<S: AsRef<str>>(string: &S) -> u64 {
     let mut hasher = ahash::AHasher::default();
-    hasher.write(string.as_ref().as_bytes());
+    string.as_ref().hash(&mut hasher);
     hasher.finish()
 }
 
