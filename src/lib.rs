@@ -573,7 +573,6 @@ pub fn string_cache_iter() -> StringCacheIterator {
 ///
 /// ```
 /// use ustr::{hash_str, ustr as u};
-/// # unsafe { ustr::_clear_cache() };
 ///
 /// let s_fox = "The quick brown fox jumps over the lazy dog.";
 /// let u_fox = u(s_fox);
