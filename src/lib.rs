@@ -145,9 +145,9 @@ use std::str::FromStr;
 
 mod stringcache;
 pub use stringcache::*;
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 pub mod serialization;
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 pub use serialization::DeserializedCache;
 
 mod bumpalloc;
@@ -393,8 +393,18 @@ impl std::ops::Deref for Ustr {
 }
 
 impl fmt::Display for Ustr {
+    /// Formats [`Ustr`] using the given formatter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ustr::ustr as u;
+    /// # unsafe { ustr::_clear_cache() };
+    ///
+    /// assert_eq!("ab c", format!("ab{:>2}", u("c")));
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        fmt::Display::fmt(self.as_str(), f)
     }
 }
 
@@ -753,7 +763,7 @@ mod tests {
     //     );
     // }
 
-    #[cfg(all(feature="serde", not(miri)))]
+    #[cfg(all(feature = "serde", not(miri)))]
     #[test]
     fn serialization() {
         let _t = TEST_LOCK.lock();
@@ -806,7 +816,7 @@ mod tests {
         assert_eq!(diff.len(), 0);
     }
 
-    #[cfg(all(feature="serde", not(miri)))]
+    #[cfg(all(feature = "serde", not(miri)))]
     #[test]
     fn serialization_ustr() {
         use super::{ustr, Ustr};
