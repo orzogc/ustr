@@ -88,7 +88,7 @@ impl<'de> Visitor<'de> for UstrVisitor {
     where
         E: Error,
     {
-        Ok(Ustr::from(s))
+        Ok(Ustr::new(s))
     }
 }
 
