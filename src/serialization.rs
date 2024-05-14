@@ -1,7 +1,7 @@
 use super::*;
 
 use serde::{
-    de::{Deserialize, Deserializer, Error, SeqAccess, Visitor},
+    de::{Deserialize, Deserializer, Error, SeqAccess, Unexpected, Visitor},
     ser::{Serialize, SerializeSeq, Serializer},
 };
 
@@ -80,7 +80,7 @@ impl<'de> Visitor<'de> for UstrVisitor {
 
     #[inline]
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a &str")
+        formatter.write_str("a string")
     }
 
     #[inline]
@@ -89,6 +89,16 @@ impl<'de> Visitor<'de> for UstrVisitor {
         E: Error,
     {
         Ok(Ustr::new(s))
+    }
+
+    #[inline]
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Ustr::new(std::str::from_utf8(v).map_err(|_| {
+            Error::invalid_value(Unexpected::Bytes(v), &self)
+        })?))
     }
 }
 
