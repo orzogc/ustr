@@ -519,9 +519,9 @@ impl FromStr for Ustr {
     }
 }
 
-impl From<&str> for Ustr {
+impl<T: ?Sized + AsRef<str>> From<&T> for Ustr {
     #[inline]
-    fn from(s: &str) -> Ustr {
+    fn from(s: &T) -> Self {
         Ustr::new(s)
     }
 }
@@ -575,13 +575,6 @@ impl From<String> for Ustr {
     }
 }
 
-impl From<&String> for Ustr {
-    #[inline]
-    fn from(s: &String) -> Ustr {
-        Ustr::new(s)
-    }
-}
-
 impl From<Box<str>> for Ustr {
     #[inline]
     fn from(s: Box<str>) -> Ustr {
@@ -628,7 +621,7 @@ impl Deref for Ustr {
 
 impl fmt::Display for Ustr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        fmt::Display::fmt(self.as_str(), f)
     }
 }
 

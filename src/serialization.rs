@@ -1,6 +1,6 @@
 use super::*;
 use serde::{
-    de::{Deserialize, Deserializer, Error, SeqAccess, Visitor},
+    de::{Deserialize, Deserializer, Error, SeqAccess, Unexpected, Visitor},
     ser::{Serialize, SerializeSeq, Serializer},
 };
 
@@ -64,8 +64,10 @@ impl<'de> Deserialize<'de> for DeserializedCache {
 }
 
 pub struct UstrVisitor {}
+
 impl UstrVisitor {
     #[allow(clippy::new_without_default)]
+    #[inline]
     pub fn new() -> Self {
         UstrVisitor {}
     }
@@ -83,6 +85,15 @@ impl Visitor<'_> for UstrVisitor {
         E: Error,
     {
         Ok(Ustr::new(s))
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Ustr::new(std::str::from_utf8(v).map_err(|_| {
+            Error::invalid_value(Unexpected::Bytes(v), &self)
+        })?))
     }
 }
 
