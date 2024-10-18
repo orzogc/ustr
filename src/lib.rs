@@ -171,7 +171,7 @@ use std::{
     rc::Rc,
     slice, str,
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 mod hash;
@@ -837,10 +837,41 @@ pub fn hash_str<S: AsRef<str>>(string: S) -> u64 {
 #[repr(transparent)]
 pub struct Bins(pub(crate) [Mutex<StringCache>; NUM_BINS]);
 
-#[cfg(test)]
-lazy_static::lazy_static! {
-    static ref TEST_LOCK: Mutex<()> = Mutex::new(());
+static STRING_CACHE: LazyLock<Bins> = LazyLock::new(|| {
+    use std::mem::{self, MaybeUninit};
+    // This deeply unsafe feeling dance allows us to initialize an array of
+    // arbitrary size and will have to tide us over until const generics
+    // land. See:
+    // https://doc.rust-lang.org/beta/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
+
+    // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
+    // safe because the type we are claiming to have initialized here is a
+    // bunch of `MaybeUninit`s, which do not require initialization.
+    let mut bins: [MaybeUninit<Mutex<StringCache>>; NUM_BINS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+    // Dropping a `MaybeUninit` does nothing. Thus using raw pointer
+    // assignment instead of `ptr::write` does not cause the old
+    // uninitialized value to be dropped. Also if there is a panic during
+    // this loop, we have a memory leak, but there is no memory safety
+    // issue.
+    for bin in &mut bins[..] {
+        *bin = MaybeUninit::new(Mutex::new(StringCache::default()));
+    }
+
+    // Everything is initialized. Transmute the array to the
+    // initialized type.
+    unsafe { mem::transmute::<_, Bins>(bins) }
+});
+
+// Use the top bits of the hash to choose a bin
+#[inline]
+fn whichbin(hash: u64) -> usize {
+    ((hash >> TOP_SHIFT as u64) % NUM_BINS as u64) as usize
 }
+
+#[cfg(test)]
+static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 #[cfg(test)]
 mod tests {
@@ -1164,40 +1195,4 @@ mod tests {
         let boxed: Box<str> = u.into();
         assert_eq!(boxed, u);
     }
-}
-
-lazy_static::lazy_static! {
-    static ref STRING_CACHE: Bins = {
-        use std::mem::{self, MaybeUninit};
-        // This deeply unsafe feeling dance allows us to initialize an array of
-        // arbitrary size and will have to tide us over until const generics
-        // land. See:
-        // https://doc.rust-lang.org/beta/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
-
-        // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
-        // safe because the type we are claiming to have initialized here is a
-        // bunch of `MaybeUninit`s, which do not require initialization.
-        let mut bins: [MaybeUninit<Mutex<StringCache>>; NUM_BINS] = unsafe {
-            MaybeUninit::uninit().assume_init()
-        };
-
-        // Dropping a `MaybeUninit` does nothing. Thus using raw pointer
-        // assignment instead of `ptr::write` does not cause the old
-        // uninitialized value to be dropped. Also if there is a panic during
-        // this loop, we have a memory leak, but there is no memory safety
-        // issue.
-        for bin in &mut bins[..] {
-            *bin = MaybeUninit::new(Mutex::new(StringCache::default()));
-        }
-
-        // Everything is initialized. Transmute the array to the
-        // initialized type.
-        unsafe { mem::transmute::<_, Bins>(bins) }
-    };
-}
-
-// Use the top bits of the hash to choose a bin
-#[inline]
-fn whichbin(hash: u64) -> usize {
-    ((hash >> TOP_SHIFT as u64) % NUM_BINS as u64) as usize
 }

@@ -25,7 +25,7 @@ use super::bumpalloc::LeakyBumpAlloc;
 // holding the lock is undefined.
 //
 // Thread safety is ensured because we can only access the `StringCache` through
-// the spinlock in the `lazy_static` ref. The initial capacity of the cache is
+// the spinlock in the `LazyLock` ref. The initial capacity of the cache is
 // divided evenly among a number of 'bins' or shards each with their own lock,
 // in order to reduce contention.
 #[repr(align(128))]
@@ -407,7 +407,6 @@ impl StringCacheEntry {
     // function to hide the pointer arithmetic in iterators.
     #[inline]
     pub(crate) unsafe fn next_entry(&self) -> *const u8 {
-        #[allow(clippy::ptr_offset_with_cast)]
         self.char_ptr().add(round_up_to(
             self.len + 1,
             std::mem::align_of::<StringCacheEntry>(),
