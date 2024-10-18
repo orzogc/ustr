@@ -158,12 +158,14 @@
 //! use it on 32-bit, please make sure to run Miri and open and issue if you
 //! find any problems.
 
+use foldhash::fast::RandomState;
 use parking_lot::RwLock;
 use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::{CStr, OsStr},
     fmt,
+    hash::BuildHasher,
     hash::{Hash, Hasher},
     ops::Deref,
     os::raw::c_char,
@@ -868,6 +870,9 @@ pub fn string_cache_iter() -> StringCacheIterator {
 
 /// Hashes the string, returns the hashed value.
 ///
+/// The returned value is the same as the pre-computed hashed
+/// value of the corresponding `Ustr`.
+///
 /// # Example
 ///
 /// ```
@@ -878,10 +883,10 @@ pub fn string_cache_iter() -> StringCacheIterator {
 /// assert_eq!(u_fox.precomputed_hash(), hash_str(s_fox));
 /// ```
 pub fn hash_str<S: AsRef<str>>(string: S) -> u64 {
-    let mut hasher = ahash::AHasher::default();
-    string.as_ref().hash(&mut hasher);
-    hasher.finish()
+    HASHER.hash_one(string.as_ref())
 }
+
+static HASHER: LazyLock<RandomState> = LazyLock::new(RandomState::default);
 
 /// The type used for the global string cache.
 ///
