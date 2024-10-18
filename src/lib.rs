@@ -201,6 +201,7 @@ pub struct Ustr {
 /// Lexicographic ordering will be slower than pointer comparison, but much less
 /// surprising if you use `Ustr`s as keys in e.g. a `BTreeMap`.
 impl Ord for Ustr {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.as_str().cmp(other.as_str())
     }
@@ -210,8 +211,8 @@ impl Ord for Ustr {
 ///
 /// Lexicographic ordering will be slower thanpointer comparison, but much less
 /// surprising if you use `Ustr`s as keys in e.g. a `BTreeMap`.
-#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for Ustr {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -272,6 +273,7 @@ impl Ustr {
     /// let words: Vec<&str> = u_fox.as_str().split_whitespace().collect();
     /// assert_eq!(words, ["the", "quick", "brown", "fox"]);
     /// ```
+    #[inline]
     pub fn as_str(&self) -> &'static str {
         // This is safe if:
         // 1) self.char_ptr points to a valid address
@@ -312,6 +314,7 @@ impl Ustr {
     ///
     /// The string is **immutable**. That means that if you modify it across the
     /// FFI boundary then all sorts of terrible things will happen.
+    #[inline]
     pub fn as_char_ptr(&self) -> *const c_char {
         self.char_ptr.as_ptr() as *const c_char
     }
@@ -325,6 +328,7 @@ impl Ustr {
     /// This function by itself is safe as the pointer and length are guaranteed
     /// to be valid. All the same caveats for the use of the `CStr` as given in
     /// the `CStr` docs apply.
+    #[inline]
     pub fn as_cstr(&self) -> &CStr {
         unsafe {
             CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(
@@ -349,6 +353,7 @@ impl Ustr {
     }
 
     /// Returns true if the length is zero.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -360,6 +365,7 @@ impl Ustr {
     }
 
     /// Get an owned String copy of this string.
+    #[inline]
     pub fn to_owned(&self) -> String {
         self.as_str().to_owned()
     }
@@ -372,126 +378,154 @@ unsafe impl Send for Ustr {}
 unsafe impl Sync for Ustr {}
 
 impl PartialEq<str> for Ustr {
+    #[inline]
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
     }
 }
 
 impl PartialEq<Ustr> for str {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         self == u.as_str()
     }
 }
 
 impl PartialEq<&str> for Ustr {
+    #[inline]
     fn eq(&self, other: &&str) -> bool {
         self.as_str() == *other
     }
 }
 
 impl PartialEq<Ustr> for &str {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == u.as_str()
     }
 }
 
 impl PartialEq<&&str> for Ustr {
+    #[inline]
     fn eq(&self, other: &&&str) -> bool {
         self.as_str() == **other
     }
 }
 
 impl PartialEq<Ustr> for &&str {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         **self == u.as_str()
     }
 }
 
 impl PartialEq<String> for Ustr {
+    #[inline]
     fn eq(&self, other: &String) -> bool {
         self.as_str() == other
     }
 }
 
 impl PartialEq<Ustr> for String {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         self == u.as_str()
     }
 }
 
 impl PartialEq<&String> for Ustr {
+    #[inline]
     fn eq(&self, other: &&String) -> bool {
         self.as_str() == *other
     }
 }
 
 impl PartialEq<Ustr> for &String {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == u.as_str()
     }
 }
 
 impl PartialEq<Box<str>> for Ustr {
+    #[inline]
     fn eq(&self, other: &Box<str>) -> bool {
         self.as_str() == &**other
     }
 }
 
 impl PartialEq<Ustr> for Box<str> {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         &**self == u.as_str()
     }
 }
 
+impl PartialEq<&Box<str>> for Ustr {
+    #[inline]
+    fn eq(&self, other: &&Box<str>) -> bool {
+        self.as_str() == &***other
+    }
+}
+
 impl PartialEq<Ustr> for &Box<str> {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         &***self == u.as_str()
     }
 }
 
 impl PartialEq<Cow<'_, str>> for Ustr {
+    #[inline]
     fn eq(&self, other: &Cow<'_, str>) -> bool {
-        self.as_str() == &*other
+        self.as_str() == *other
     }
 }
 
 impl PartialEq<Ustr> for Cow<'_, str> {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
-        &*self == u.as_str()
+        *self == u.as_str()
     }
 }
 
 impl PartialEq<&Cow<'_, str>> for Ustr {
+    #[inline]
     fn eq(&self, other: &&Cow<'_, str>) -> bool {
-        self.as_str() == &**other
+        self.as_str() == **other
     }
 }
 
 impl PartialEq<Ustr> for &Cow<'_, str> {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
-        &**self == u.as_str()
+        **self == u.as_str()
     }
 }
 
 impl PartialEq<Ustr> for Path {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         self == Path::new(u)
     }
 }
 
 impl PartialEq<Ustr> for &Path {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == Path::new(u)
     }
 }
 
 impl PartialEq<Ustr> for OsStr {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         self == OsStr::new(u)
     }
 }
 
 impl PartialEq<Ustr> for &OsStr {
+    #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == OsStr::new(u)
     }
@@ -503,6 +537,7 @@ impl<T: ?Sized> AsRef<T> for Ustr
 where
     str: AsRef<T>,
 {
+    #[inline]
     fn as_ref(&self) -> &T {
         self.as_str().as_ref()
     }
@@ -518,84 +553,98 @@ impl FromStr for Ustr {
 }
 
 impl From<&str> for Ustr {
+    #[inline]
     fn from(s: &str) -> Ustr {
         Ustr::from(s)
     }
 }
 
 impl From<Ustr> for &'static str {
+    #[inline]
     fn from(s: Ustr) -> &'static str {
         s.as_str()
     }
 }
 
 impl From<Ustr> for String {
+    #[inline]
     fn from(u: Ustr) -> Self {
         String::from(u.as_str())
     }
 }
 
 impl From<Ustr> for Box<str> {
+    #[inline]
     fn from(u: Ustr) -> Self {
         Box::from(u.as_str())
     }
 }
 
 impl From<Ustr> for Rc<str> {
+    #[inline]
     fn from(u: Ustr) -> Self {
         Rc::from(u.as_str())
     }
 }
 
 impl From<Ustr> for Arc<str> {
+    #[inline]
     fn from(u: Ustr) -> Self {
         Arc::from(u.as_str())
     }
 }
 
 impl From<Ustr> for Cow<'static, str> {
+    #[inline]
     fn from(u: Ustr) -> Self {
         Cow::Borrowed(u.as_str())
     }
 }
 
 impl From<String> for Ustr {
+    #[inline]
     fn from(s: String) -> Ustr {
         Ustr::from(&s)
     }
 }
 
 impl From<&String> for Ustr {
+    #[inline]
     fn from(s: &String) -> Ustr {
-        Ustr::from(&**s)
+        Ustr::from(s)
     }
 }
 
 impl From<Box<str>> for Ustr {
+    #[inline]
     fn from(s: Box<str>) -> Ustr {
-        Ustr::from(&*s)
+        Ustr::from(&s)
     }
 }
 
 impl From<Rc<str>> for Ustr {
+    #[inline]
     fn from(s: Rc<str>) -> Ustr {
-        Ustr::from(&*s)
+        Ustr::from(&s)
     }
 }
 
 impl From<Arc<str>> for Ustr {
+    #[inline]
     fn from(s: Arc<str>) -> Ustr {
-        Ustr::from(&*s)
+        Ustr::from(&s)
     }
 }
 
 impl From<Cow<'_, str>> for Ustr {
+    #[inline]
     fn from(s: Cow<'_, str>) -> Ustr {
-        Ustr::from(&*s)
+        Ustr::from(&s)
     }
 }
 
 impl Default for Ustr {
+    #[inline]
     fn default() -> Self {
         Ustr::from("")
     }
@@ -603,6 +652,8 @@ impl Default for Ustr {
 
 impl Deref for Ustr {
     type Target = str;
+
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.as_str()
     }
@@ -721,6 +772,7 @@ pub fn existing_ustr(s: &str) -> Option<Ustr> {
 /// ustr("Send me to JSON and back");
 /// let json = serde_json::to_string(ustr::cache()).unwrap();
 /// # }
+#[inline]
 pub fn cache() -> &'static Bins {
     &STRING_CACHE
 }
@@ -816,10 +868,8 @@ lazy_static::lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::TEST_LOCK;
-    use lazy_static::lazy_static;
     use std::ffi::OsStr;
     use std::path::Path;
-    use std::sync::Mutex;
 
     #[test]
     fn it_works() {

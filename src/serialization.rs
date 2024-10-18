@@ -27,6 +27,7 @@ pub struct BinsVisitor {}
 
 impl BinsVisitor {
     #[allow(clippy::new_without_default)]
+    #[inline]
     pub fn new() -> Self {
         BinsVisitor {}
     }
@@ -70,11 +71,11 @@ impl UstrVisitor {
     }
 }
 
-impl<'de> Visitor<'de> for UstrVisitor {
+impl Visitor<'_> for UstrVisitor {
     type Value = Ustr;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a &str")
+        formatter.write_str("a string")
     }
 
     fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>

@@ -307,22 +307,26 @@ impl StringCache {
         );
     }
 
+    #[inline]
     pub(crate) fn total_allocated(&self) -> usize {
         self.alloc.allocated()
             + self.old_allocs.iter().map(|a| a.allocated()).sum::<usize>()
     }
 
+    #[inline]
     pub(crate) fn total_capacity(&self) -> usize {
         self.alloc.capacity()
             + self.old_allocs.iter().map(|a| a.capacity()).sum::<usize>()
     }
 
+    #[inline]
     pub(crate) fn num_entries(&self) -> usize {
         self.num_entries
     }
 }
 
 impl Default for StringCache {
+    #[inline]
     fn default() -> StringCache {
         StringCache::new()
     }
@@ -392,6 +396,7 @@ pub(crate) struct StringCacheEntry {
 
 impl StringCacheEntry {
     // Get the pointer to the characters.
+    #[inline]
     pub(crate) fn char_ptr(&self) -> *const u8 {
         // We know the chars are always directly after this struct in memory
         // because that's the way they're laid out on initialization.
@@ -400,6 +405,7 @@ impl StringCacheEntry {
 
     // Calcualte the address of the next entry in the cache. This is a utility
     // function to hide the pointer arithmetic in iterators.
+    #[inline]
     pub(crate) unsafe fn next_entry(&self) -> *const u8 {
         #[allow(clippy::ptr_offset_with_cast)]
         self.char_ptr().add(round_up_to(

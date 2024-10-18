@@ -122,7 +122,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             &format!("raft string-interner x {} threads", num_threads),
             move |b| {
                 let (tx1, rx1) = bounded::<
-                    Arc<Mutex<StringInterner<string_interner::DefaultSymbol>>>,
+                    Arc<Mutex<StringInterner<string_interner::DefaultBackend>>>,
                 >(0);
                 let (tx2, rx2) = bounded(0);
                 scope(|scope| {

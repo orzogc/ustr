@@ -19,7 +19,7 @@ impl LeakyBumpAlloc {
         let layout = Layout::from_size_align(capacity, alignment).unwrap();
         let start = unsafe { System.alloc(layout) };
         if start.is_null() {
-            panic!("oom");
+            std::alloc::handle_alloc_error(layout);
         }
         let end = unsafe { start.add(layout.size()) };
         let ptr = end;
@@ -61,18 +61,22 @@ impl LeakyBumpAlloc {
         self.ptr
     }
 
+    #[inline]
     pub fn allocated(&self) -> usize {
         self.end as usize - self.ptr as usize
     }
 
+    #[inline]
     pub fn capacity(&self) -> usize {
         self.layout.size()
     }
 
+    #[inline]
     pub(crate) fn end(&self) -> *const u8 {
         self.end
     }
 
+    #[inline]
     pub(crate) fn ptr(&self) -> *const u8 {
         self.ptr
     }
