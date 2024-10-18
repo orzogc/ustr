@@ -15,11 +15,11 @@ categories = ["caching", "data-structures"]
 travis-ci = { repository = "anderslanglands/ustr", branch = "master" }
 
 [dependencies]
+ahash = "0.8"
 byteorder = "1.5"
 lazy_static = "1.5"
 parking_lot = "0.12"
 serde = { version = "1", optional = true }
-ahash = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 criterion = "0.5.1"
@@ -27,8 +27,8 @@ crossbeam-channel = "0.5.13"
 crossbeam-utils = "0.8.20"
 libc = "0.2.161"
 serde_json = "1.0.129"
-string-interner = "0.17.0"
 string_cache = "0.8.7"
+string-interner = "0.17.0"
 
 [[bench]]
 name = "creation"

@@ -190,7 +190,7 @@ pub use serialization::DeserializedCache;
 /// To use, create one using [`Ustr::from`] or the [`ustr`] function. You can
 /// freely copy, destroy or send `Ustr`s to other threads: the underlying string
 /// is always valid in memory (and is never destroyed).
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Ustr {
     char_ptr: NonNull<u8>,
@@ -219,7 +219,7 @@ impl PartialOrd for Ustr {
 }
 
 impl Ustr {
-    /// Create a new `Ustr` from the given `str`.
+    /// Create a new [`Ustr`] from the given `string`.
     ///
     /// You can also use the [`ustr`] function.
     ///
@@ -229,17 +229,14 @@ impl Ustr {
     /// use ustr::{Ustr, ustr as u};
     /// # unsafe { ustr::_clear_cache() };
     ///
-    /// let u1 = Ustr::from("the quick brown fox");
+    /// let u1 = Ustr::new("the quick brown fox");
     /// let u2 = u("the quick brown fox");
     /// assert_eq!(u1, u2);
     /// assert_eq!(ustr::num_entries(), 1);
     /// ```
-    pub fn from(string: &str) -> Ustr {
-        let hash = {
-            let mut hasher = ahash::AHasher::default();
-            hasher.write(string.as_bytes());
-            hasher.finish()
-        };
+    pub fn new<S: AsRef<str>>(string: S) -> Ustr {
+        let string = string.as_ref();
+        let hash = hash_str(string);
         let mut sc = STRING_CACHE.0[whichbin(hash)].lock();
         Ustr {
             // SAFETY: sc.insert does not give back a null pointer
@@ -249,12 +246,9 @@ impl Ustr {
         }
     }
 
-    pub fn from_existing(string: &str) -> Option<Ustr> {
-        let hash = {
-            let mut hasher = ahash::AHasher::default();
-            hasher.write(string.as_bytes());
-            hasher.finish()
-        };
+    pub fn from_existing<S: AsRef<str>>(string: S) -> Option<Ustr> {
+        let string = string.as_ref();
+        let hash = hash_str(string);
         let sc = STRING_CACHE.0[whichbin(hash)].lock();
         sc.get_existing(string, hash).map(|ptr| Ustr {
             char_ptr: unsafe { NonNull::new_unchecked(ptr as *mut _) },
@@ -377,6 +371,16 @@ impl Ustr {
 unsafe impl Send for Ustr {}
 unsafe impl Sync for Ustr {}
 
+impl<T: ?Sized> PartialEq<&T> for Ustr
+where
+    Ustr: PartialEq<T>,
+{
+    #[inline]
+    fn eq(&self, other: &&T) -> bool {
+        *self == **other
+    }
+}
+
 impl PartialEq<str> for Ustr {
     #[inline]
     fn eq(&self, other: &str) -> bool {
@@ -391,24 +395,10 @@ impl PartialEq<Ustr> for str {
     }
 }
 
-impl PartialEq<&str> for Ustr {
-    #[inline]
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
-    }
-}
-
 impl PartialEq<Ustr> for &str {
     #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == u.as_str()
-    }
-}
-
-impl PartialEq<&&str> for Ustr {
-    #[inline]
-    fn eq(&self, other: &&&str) -> bool {
-        self.as_str() == **other
     }
 }
 
@@ -422,28 +412,21 @@ impl PartialEq<Ustr> for &&str {
 impl PartialEq<String> for Ustr {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        self.as_str() == other
+        self.as_str() == *other
     }
 }
 
 impl PartialEq<Ustr> for String {
     #[inline]
     fn eq(&self, u: &Ustr) -> bool {
-        self == u.as_str()
-    }
-}
-
-impl PartialEq<&String> for Ustr {
-    #[inline]
-    fn eq(&self, other: &&String) -> bool {
-        self.as_str() == *other
+        *self == u.as_str()
     }
 }
 
 impl PartialEq<Ustr> for &String {
     #[inline]
     fn eq(&self, u: &Ustr) -> bool {
-        *self == u.as_str()
+        **self == u.as_str()
     }
 }
 
@@ -458,13 +441,6 @@ impl PartialEq<Ustr> for Box<str> {
     #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         &**self == u.as_str()
-    }
-}
-
-impl PartialEq<&Box<str>> for Ustr {
-    #[inline]
-    fn eq(&self, other: &&Box<str>) -> bool {
-        self.as_str() == &***other
     }
 }
 
@@ -486,13 +462,6 @@ impl PartialEq<Ustr> for Cow<'_, str> {
     #[inline]
     fn eq(&self, u: &Ustr) -> bool {
         *self == u.as_str()
-    }
-}
-
-impl PartialEq<&Cow<'_, str>> for Ustr {
-    #[inline]
-    fn eq(&self, other: &&Cow<'_, str>) -> bool {
-        self.as_str() == **other
     }
 }
 
@@ -531,8 +500,6 @@ impl PartialEq<Ustr> for &OsStr {
     }
 }
 
-impl Eq for Ustr {}
-
 impl<T: ?Sized> AsRef<T> for Ustr
 where
     str: AsRef<T>,
@@ -544,18 +511,18 @@ where
 }
 
 impl FromStr for Ustr {
-    type Err = std::string::ParseError;
+    type Err = std::convert::Infallible;
 
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Ustr::from(s))
+        Ok(Ustr::new(s))
     }
 }
 
 impl From<&str> for Ustr {
     #[inline]
     fn from(s: &str) -> Ustr {
-        Ustr::from(s)
+        Ustr::new(s)
     }
 }
 
@@ -604,49 +571,49 @@ impl From<Ustr> for Cow<'static, str> {
 impl From<String> for Ustr {
     #[inline]
     fn from(s: String) -> Ustr {
-        Ustr::from(&s)
+        Ustr::new(s)
     }
 }
 
 impl From<&String> for Ustr {
     #[inline]
     fn from(s: &String) -> Ustr {
-        Ustr::from(s)
+        Ustr::new(s)
     }
 }
 
 impl From<Box<str>> for Ustr {
     #[inline]
     fn from(s: Box<str>) -> Ustr {
-        Ustr::from(&s)
+        Ustr::new(s)
     }
 }
 
 impl From<Rc<str>> for Ustr {
     #[inline]
     fn from(s: Rc<str>) -> Ustr {
-        Ustr::from(&s)
+        Ustr::new(s)
     }
 }
 
 impl From<Arc<str>> for Ustr {
     #[inline]
     fn from(s: Arc<str>) -> Ustr {
-        Ustr::from(&s)
+        Ustr::new(s)
     }
 }
 
 impl From<Cow<'_, str>> for Ustr {
     #[inline]
     fn from(s: Cow<'_, str>) -> Ustr {
-        Ustr::from(&s)
+        Ustr::new(s)
     }
 }
 
 impl Default for Ustr {
     #[inline]
     fn default() -> Self {
-        Ustr::from("")
+        Ustr::new("")
     }
 }
 
@@ -736,7 +703,7 @@ pub fn total_capacity() -> usize {
 /// ```
 #[inline]
 pub fn ustr(s: &str) -> Ustr {
-    Ustr::from(s)
+    Ustr::new(s)
 }
 
 /// Create a new `Ustr` from the given `str` but only if it already exists in
@@ -851,6 +818,23 @@ pub fn string_cache_iter() -> StringCacheIterator {
         current_alloc: 0,
         current_ptr,
     }
+}
+
+/// Hashes the string, returns the hashed value.
+///
+/// # Example
+///
+/// ```
+/// use ustr::{hash_str, ustr as u};
+///
+/// let s_fox = "The quick brown fox jumps over the lazy dog.";
+/// let u_fox = u(s_fox);
+/// assert_eq!(u_fox.precomputed_hash(), hash_str(s_fox));
+/// ```
+pub fn hash_str<S: AsRef<str>>(string: S) -> u64 {
+    let mut hasher = ahash::AHasher::default();
+    string.as_ref().hash(&mut hasher);
+    hasher.finish()
 }
 
 /// The type used for the global string cache.
