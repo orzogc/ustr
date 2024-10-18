@@ -41,7 +41,13 @@ impl LeakyBumpAlloc {
     pub unsafe fn allocate(&mut self, num_bytes: usize) -> *mut u8 {
         // Our new ptr will be offset down the heap by num_bytes bytes.
         let ptr = self.ptr as usize;
-        let new_ptr = ptr.checked_sub(num_bytes).expect("ptr sub overflowed");
+        let new_ptr = ptr.checked_sub(num_bytes).unwrap_or_else(|| {
+            eprintln!("ptr sub overflowed");
+
+            // We have to abort here rather than panic or the mutex may
+            // deadlock.
+            std::process::abort();
+        });
         // Round down to alignment.
         let new_ptr = new_ptr & !(self.layout.align() - 1);
         // Check we have enough capacity.
@@ -52,6 +58,7 @@ impl LeakyBumpAlloc {
                 self.end as usize - new_ptr,
                 self.capacity()
             );
+
             // We have to abort here rather than panic or the mutex may
             // deadlock.
             std::process::abort();

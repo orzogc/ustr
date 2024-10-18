@@ -37,7 +37,7 @@ pub(crate) struct StringCache {
     mask: usize,
     total_allocated: usize,
     // Padding and aligning to 128 bytes gives up to 20% performance
-    // improvement this actually aligns to 256 bytes because of the Mutex
+    // improvement this actually aligns to 256 bytes because of the mutex
     // around it.
     _pad: [u32; 3],
 }
@@ -332,8 +332,9 @@ impl Default for StringCache {
     }
 }
 
-// We are safe to be `Send` but not `Sync` (we get Sync by wrapping in a mutex).
+// We are safe to be `Send` and `Sync`.
 unsafe impl Send for StringCache {}
+unsafe impl Sync for StringCache {}
 
 #[doc(hidden)]
 pub struct StringCacheIterator {

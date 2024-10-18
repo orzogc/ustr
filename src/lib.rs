@@ -157,7 +157,8 @@
 //! a 32-bit system as well, bit 32-bit is not checked regularly. If you want to
 //! use it on 32-bit, please make sure to run Miri and open and issue if you
 //! find any problems.
-use parking_lot::Mutex;
+
+use parking_lot::RwLock;
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -237,7 +238,7 @@ impl Ustr {
     pub fn new<S: AsRef<str>>(string: S) -> Ustr {
         let string = string.as_ref();
         let hash = hash_str(string);
-        let mut sc = STRING_CACHE.0[whichbin(hash)].lock();
+        let mut sc = STRING_CACHE.0[whichbin(hash)].write();
         Ustr {
             // SAFETY: sc.insert does not give back a null pointer
             char_ptr: unsafe {
@@ -249,7 +250,7 @@ impl Ustr {
     pub fn from_existing<S: AsRef<str>>(string: S) -> Option<Ustr> {
         let string = string.as_ref();
         let hash = hash_str(string);
-        let sc = STRING_CACHE.0[whichbin(hash)].lock();
+        let sc = STRING_CACHE.0[whichbin(hash)].read();
         sc.get_existing(string, hash).map(|ptr| Ustr {
             char_ptr: unsafe { NonNull::new_unchecked(ptr as *mut _) },
         })
@@ -651,7 +652,7 @@ impl Hash for Ustr {
 #[doc(hidden)]
 pub unsafe fn _clear_cache() {
     for m in STRING_CACHE.0.iter() {
-        m.lock().clear();
+        m.write().clear();
     }
 }
 
@@ -662,7 +663,7 @@ pub fn total_allocated() -> usize {
         .0
         .iter()
         .map(|sc| {
-            let t = sc.lock().total_allocated();
+            let t = sc.read().total_allocated();
 
             t
         })
@@ -675,7 +676,7 @@ pub fn total_capacity() -> usize {
         .0
         .iter()
         .map(|sc| {
-            let t = sc.lock().total_capacity();
+            let t = sc.read().total_capacity();
             t
         })
         .sum()
@@ -756,7 +757,7 @@ pub fn num_entries() -> usize {
         .0
         .iter()
         .map(|sc| {
-            let t = sc.lock().num_entries();
+            let t = sc.read().num_entries();
             t
         })
         .sum()
@@ -768,7 +769,7 @@ pub fn num_entries_per_bin() -> Vec<usize> {
         .0
         .iter()
         .map(|sc| {
-            let t = sc.lock().num_entries();
+            let t = sc.read().num_entries();
             t
         })
         .collect::<Vec<_>>()
@@ -789,7 +790,7 @@ pub fn num_entries_per_bin() -> Vec<usize> {
 pub fn string_cache_iter() -> StringCacheIterator {
     let mut allocs = Vec::new();
     for m in STRING_CACHE.0.iter() {
-        let sc = m.lock();
+        let sc = m.read();
         // the start of the allocator's data is actually the ptr, start() just
         // points to the beginning of the allocated region. The first bytes will
         // be uninitialized since we're bumping down
@@ -835,7 +836,7 @@ pub fn hash_str<S: AsRef<str>>(string: S) -> u64 {
 /// This is exposed to allow e.g. serialization of the data returned by the
 /// [`cache()`] function.
 #[repr(transparent)]
-pub struct Bins(pub(crate) [Mutex<StringCache>; NUM_BINS]);
+pub struct Bins([RwLock<StringCache>; NUM_BINS]);
 
 static STRING_CACHE: LazyLock<Bins> = LazyLock::new(|| {
     use std::mem::{self, MaybeUninit};
@@ -847,7 +848,7 @@ static STRING_CACHE: LazyLock<Bins> = LazyLock::new(|| {
     // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
     // safe because the type we are claiming to have initialized here is a
     // bunch of `MaybeUninit`s, which do not require initialization.
-    let mut bins: [MaybeUninit<Mutex<StringCache>>; NUM_BINS] =
+    let mut bins: [MaybeUninit<RwLock<StringCache>>; NUM_BINS] =
         unsafe { MaybeUninit::uninit().assume_init() };
 
     // Dropping a `MaybeUninit` does nothing. Thus using raw pointer
@@ -856,7 +857,7 @@ static STRING_CACHE: LazyLock<Bins> = LazyLock::new(|| {
     // this loop, we have a memory leak, but there is no memory safety
     // issue.
     for bin in &mut bins[..] {
-        *bin = MaybeUninit::new(Mutex::new(StringCache::default()));
+        *bin = MaybeUninit::new(RwLock::new(StringCache::default()));
     }
 
     // Everything is initialized. Transmute the array to the
@@ -871,7 +872,8 @@ fn whichbin(hash: u64) -> usize {
 }
 
 #[cfg(test)]
-static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+static TEST_LOCK: LazyLock<parking_lot::Mutex<()>> =
+    LazyLock::new(|| parking_lot::Mutex::new(()));
 
 #[cfg(test)]
 mod tests {
