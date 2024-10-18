@@ -1,7 +1,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 
 // The world's dumbest allocator. Just keep bumping a pointer until we run out
-// of memory, in which case we abort. StringCache is responsible for creating
+// of memory, in which case we panic. StringCache is responsible for creating
 // a new allocator when that's about to happen.
 // This is now bumping downward rather than up, which simplifies the allocate()
 // method and gives a small (5-7%) performance improvement in multithreaded
@@ -37,31 +37,23 @@ impl LeakyBumpAlloc {
         System.dealloc(self.start, self.layout);
     }
 
-    // Allocates a new chunk. Aborts if out of memory.
+    // Allocates a new chunk. Panics if out of memory.
     pub unsafe fn allocate(&mut self, num_bytes: usize) -> *mut u8 {
         // Our new ptr will be offset down the heap by num_bytes bytes.
         let ptr = self.ptr as usize;
-        let new_ptr = ptr.checked_sub(num_bytes).unwrap_or_else(|| {
-            eprintln!("ptr sub overflowed");
-
-            // We have to abort here rather than panic or the mutex may
-            // deadlock.
-            std::process::abort();
-        });
+        // The mutex in `parking_lot` can't be poisoned on panic.
+        let new_ptr = ptr.checked_sub(num_bytes).expect("ptr sub overflowed");
         // Round down to alignment.
         let new_ptr = new_ptr & !(self.layout.align() - 1);
         // Check we have enough capacity.
         let start = self.start as usize;
         if new_ptr < start {
-            eprintln!(
+            // The mutex in `parking_lot` can't be poisoned on panic.
+            panic!(
                 "Allocator asked to bump to {} bytes with a capacity of {}",
                 self.end as usize - new_ptr,
                 self.capacity()
-            );
-
-            // We have to abort here rather than panic or the mutex may
-            // deadlock.
-            std::process::abort();
+            )
         }
 
         self.ptr = self.ptr.sub(ptr - new_ptr);

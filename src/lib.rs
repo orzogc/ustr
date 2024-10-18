@@ -247,6 +247,21 @@ impl Ustr {
         }
     }
 
+    /// Create a new `Ustr` from the given string but only if it already exists
+    /// in the string cache.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ustr::Ustr;
+    /// # unsafe { ustr::_clear_cache() };
+    ///
+    /// let u1 = Ustr::from_existing("the quick brown fox");
+    /// let u2 = Ustr::new("the quick brown fox");
+    /// let u3 = Ustr::from_existing("the quick brown fox");
+    /// assert_eq!(u1, None);
+    /// assert_eq!(u3, Some(u2));
+    /// ```
     pub fn from_existing<S: AsRef<str>>(string: S) -> Option<Ustr> {
         let string = string.as_ref();
         let hash = hash_str(string);
@@ -314,23 +329,60 @@ impl Ustr {
         self.char_ptr.as_ptr() as *const c_char
     }
 
+    /// Get this `Ustr` as a byte slice with an extra nul byte at the end.
+    #[inline]
+    pub fn as_bytes_with_nul(&self) -> &'static [u8] {
+        // SAFETY: The string buffer has an extra nul byte at the end.
+        unsafe { slice::from_raw_parts(self.char_ptr.as_ptr(), self.len() + 1) }
+    }
+
+    /// Get this `Ustr` as a [`CStr`]
+    ///
+    /// This is useful for passing to APIs (like ash) that use `CStr`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ustr::ustr as u;
+    /// use std::ffi::CStr;
+    /// # unsafe { ustr::_clear_cache() };
+    ///
+    /// let u_fox = u("the quick brown fox").as_cstr().unwrap();
+    /// let s_fox = CStr::from_bytes_with_nul("the quick brown fox\0".as_bytes()).unwrap();
+    /// assert_eq!(u_fox, s_fox);
+    ///
+    /// assert!(u("foo\0bar").as_cstr().is_none());
+    /// ```
+    #[inline]
+    pub fn as_cstr(&self) -> Option<&'static CStr> {
+        CStr::from_bytes_with_nul(self.as_bytes_with_nul()).ok()
+    }
+
     /// Get this `Ustr` as a [`CStr`]
     ///
     /// This is useful for passing to APIs (like ash) that use `CStr`.
     ///
     /// # Safety
     ///
-    /// This function by itself is safe as the pointer and length are guaranteed
-    /// to be valid. All the same caveats for the use of the `CStr` as given in
-    /// the `CStr` docs apply.
+    /// This string must not contain any nul bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ustr::ustr as u;
+    /// use std::ffi::CStr;
+    /// # unsafe { ustr::_clear_cache() };
+    ///
+    /// let u_fox = u("the quick brown fox");
+    /// let s_fox = CStr::from_bytes_with_nul("the quick brown fox\0".as_bytes()).unwrap();
+    /// assert_eq!(unsafe { u_fox.as_cstr_unchecked() }, s_fox);
+    /// ```
     #[inline]
-    pub fn as_cstr(&self) -> &CStr {
-        unsafe {
-            CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(
-                self.as_ptr(),
-                self.len() + 1,
-            ))
-        }
+    pub unsafe fn as_cstr_unchecked(&self) -> &'static CStr {
+        // SAFETY: The string buffer is nul-terminated and it's caller's
+        //         responsibility to make sure that the string itself doesn't
+        //         contain any nul bytes.
+        unsafe { CStr::from_bytes_with_nul_unchecked(self.as_bytes_with_nul()) }
     }
 
     /// Get a raw pointer to the `StringCacheEntry`.
@@ -700,7 +752,7 @@ pub fn ustr(s: &str) -> Ustr {
     Ustr::new(s)
 }
 
-/// Create a new `Ustr` from the given `str` but only if it already exists in
+/// Create a new `Ustr` from the given string but only if it already exists in
 /// the string cache.
 ///
 /// # Examples

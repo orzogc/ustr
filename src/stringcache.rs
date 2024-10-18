@@ -20,9 +20,7 @@ use super::bumpalloc::LeakyBumpAlloc;
 // Proper alignment is guaranteed when allocating each entry as the alignment
 // is baked into the allocator. `StringCache` is responsible for monitoring the
 // Allocator and creating a new one when it would overflow -- the `Alloc` itself
-// will just `abort()` if it runs out of memory. Note that we abort() rather
-// than panic because the behaviour of the spinlock in case of a panic while
-// holding the lock is undefined.
+// will just panic if it runs out of memory.
 //
 // Thread safety is ensured because we can only access the `StringCache` through
 // the spinlock in the `LazyLock` ref. The initial capacity of the cache is
@@ -212,7 +210,7 @@ impl StringCache {
 
             // Write the header.
             // `entry_ptr` is guaranteed to point to a valid `StringCacheEntry`,
-            // or `alloc.allocate()` would have aborted.
+            // or `alloc.allocate()` would have panicked.
             std::ptr::write(
                 *entry_ptr,
                 StringCacheEntry {
@@ -247,7 +245,7 @@ impl StringCache {
     // This is safe as long as:
     // - The in-memory layout of the `StringCacheEntry` is correct.
     //
-    // If there's not enough memory for the new entry table, it will just abort
+    // If there's not enough memory for the new entry table, it will just panic.
     pub(crate) unsafe fn grow(&mut self) {
         let new_mask = self.mask * 2 + 1;
 
